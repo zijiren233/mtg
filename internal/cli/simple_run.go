@@ -31,8 +31,8 @@ type SimpleRun struct {
 func (s *SimpleRun) Run(cli *CLI, version string) error { //nolint: cyclop,funlen
 	conf := &config.Config{}
 
-	conf.V2b.APIHost = s.V2bAPI
-	conf.V2b.APIToken = s.V2bToken
+	conf.V2b.API = s.V2bAPI
+	conf.V2b.Token = s.V2bToken
 	conf.V2b.NodeType = s.V2bNodeType
 	conf.V2b.NodeID = s.V2bNodeID
 

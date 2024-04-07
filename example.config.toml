@@ -1,7 +1,8 @@
-v2b-api = "https://example.com"
-v2b-token = "api-token"
-v2b-node-type = "v2ray"
-v2b-node-id = 1
+[v2b]
+api = "https://example.com"
+token = "api-token"
+node-type = "v2ray"
+node-id = 1
 
 # This is an example of the configuration file for mtg. You actually can
 # run mtg with it. It starts a proxy on all interfaces with a secret

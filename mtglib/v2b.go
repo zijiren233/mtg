@@ -15,10 +15,10 @@ import (
 )
 
 type V2bConfig struct {
-	APIHost  string `json:"api_host"`
-	APIToken string `json:"api_token"`
-	NodeType string `json:"node_type"`
-	NodeID   uint   `json:"node_id"`
+	API      string `json:"api"`
+	Token    string `json:"token"`
+	NodeType string `json:"nodeType"`
+	NodeID   uint   `json:"nodeId"`
 }
 
 type trafficStatsEntry struct {
@@ -60,12 +60,12 @@ func (v *V2b) Start(interval time.Duration) {
 func (v *V2b) getUserList(ctx context.Context, timeout time.Duration) ([]*user, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.config.APIHost+"/api/v1/server/UniProxy/user", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.config.API+"/api/v1/server/UniProxy/user", nil)
 	if err != nil {
 		return nil, err
 	}
 	q := req.URL.Query()
-	q.Add("token", v.config.APIToken)
+	q.Add("token", v.config.Token)
 	q.Add("node_id", strconv.Itoa(int(v.config.NodeID)))
 	q.Add("node_type", v.config.NodeType)
 	req.URL.RawQuery = q.Encode()
@@ -112,6 +112,7 @@ func (v *V2b) Authenticate(id string) bool {
 	if _, exists := v.usersMap[id]; exists {
 		return true
 	}
+
 	return false
 }
 
@@ -149,8 +150,8 @@ func (v *V2b) PushTrafficToV2boardInterval(interval time.Duration) {
 		if err := v.pushTrafficToV2board(
 			fmt.Sprintf(
 				"%s?token=%s&node_id=%d&node_type=%s",
-				v.config.APIHost+"/api/v1/server/UniProxy/push",
-				v.config.APIToken,
+				v.config.API+"/api/v1/server/UniProxy/push",
+				v.config.Token,
 				v.config.NodeID,
 				v.config.NodeType,
 			),

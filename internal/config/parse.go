@@ -59,6 +59,12 @@ type tomlConfig struct {
 			MetricPrefix string `toml:"metric-prefix" json:"metricPrefix,omitempty"`
 		} `toml:"prometheus" json:"prometheus,omitempty"`
 	} `toml:"stats" json:"stats,omitempty"`
+	V2b struct {
+		API      string `toml:"api" json:"api,omitempty"`
+		Token    string `toml:"token" json:"token,omitempty"`
+		NodeType string `toml:"node-type" json:"nodeType,omitempty"`
+		NodeID   uint   `toml:"node-id" json:"nodeId,omitempty"`
+	} `toml:"v2b" json:"v2b,omitempty"`
 }
 
 func Parse(rawData []byte) (*Config, error) {
