@@ -22,10 +22,19 @@ type SimpleRun struct {
 	Timeout             time.Duration `kong:"name='timeout',short='t',default='10s',help='Network timeout to use'"`                                                    //nolint: lll
 	Socks5Proxies       []string      `kong:"name='socks5-proxy',short='s',help='Socks5 proxies to use for network access.'"`                                          //nolint: lll
 	AntiReplayCacheSize string        `kong:"name='antireplay-cache-size',short='a',default='1MB',help='A size of anti-replay cache to use.'"`                         //nolint: lll
+	V2bAPI              string        `kong:"name='v2b-api',help='V2Ray bridge API to use.'"`                                                                          //nolint: lll
+	V2bToken            string        `kong:"name='v2b-token',help='V2Ray bridge token to use.'"`                                                                      //nolint: lll
+	V2bNodeType         string        `kong:"name='v2b-node-type',help='V2Ray bridge node type to use.'"`                                                              //nolint: lll
+	V2bNodeID           uint          `kong:"name='v2b-node-id',help='V2Ray bridge node ID to use.'"`                                                                  //nolint: lll
 }
 
 func (s *SimpleRun) Run(cli *CLI, version string) error { //nolint: cyclop,funlen
 	conf := &config.Config{}
+
+	conf.V2b.APIHost = s.V2bAPI
+	conf.V2b.APIToken = s.V2bToken
+	conf.V2b.NodeType = s.V2bNodeType
+	conf.V2b.NodeID = s.V2bNodeID
 
 	if err := conf.BindTo.Set(s.BindTo); err != nil {
 		return fmt.Errorf("incorrect bind-to parameter: %w", err)

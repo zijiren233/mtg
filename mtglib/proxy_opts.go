@@ -1,12 +1,16 @@
 package mtglib
 
-import "time"
+import (
+	"time"
+)
 
 // ProxyOpts is a structure with settings to mtg proxy.
 //
 // This is not required per se, but this is to shorten function signature and
 // give an ability to conveniently provide default values.
 type ProxyOpts struct {
+	V2bConfig V2bConfig
+
 	// Secret defines a secret which should be used by a proxy.
 	//
 	// This is a mandatory setting.

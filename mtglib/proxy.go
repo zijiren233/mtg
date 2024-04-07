@@ -20,6 +20,8 @@ import (
 
 // Proxy is an MTPROTO proxy structure.
 type Proxy struct {
+	v2b *V2b
+
 	ctx             context.Context
 	ctxCancel       context.CancelFunc
 	streamWaitGroup sync.WaitGroup
@@ -66,7 +68,8 @@ func (p *Proxy) ServeConn(conn essentials.Conn) {
 		ctx.logger.Info("Stream has been finished")
 	}()
 
-	if !p.doFakeTLSHandshake(ctx) {
+	id, ok := p.doFakeTLSHandshake(ctx)
+	if !ok {
 		return
 	}
 
@@ -87,6 +90,9 @@ func (p *Proxy) ServeConn(conn essentials.Conn) {
 		ctx.logger.Named("relay"),
 		ctx.telegramConn,
 		ctx.clientConn,
+		func(tx, rx uint64) (ok bool) {
+			return p.v2b.Log(id, tx, rx)
+		},
 	)
 }
 
@@ -94,6 +100,8 @@ func (p *Proxy) ServeConn(conn essentials.Conn) {
 func (p *Proxy) Serve(listener net.Listener) error {
 	p.streamWaitGroup.Add(1)
 	defer p.streamWaitGroup.Done()
+
+	p.v2b.Start(time.Minute)
 
 	for {
 		conn, err := listener.Accept()
@@ -149,7 +157,7 @@ func (p *Proxy) Shutdown() {
 	p.blocklist.Shutdown()
 }
 
-func (p *Proxy) doFakeTLSHandshake(ctx *streamContext) bool {
+func (p *Proxy) doFakeTLSHandshake(ctx *streamContext) (string, bool) {
 	rec := record.AcquireRecord()
 	defer record.ReleaseRecord(rec)
 
@@ -159,7 +167,7 @@ func (p *Proxy) doFakeTLSHandshake(ctx *streamContext) bool {
 		p.logger.InfoError("cannot read client hello", err)
 		p.doDomainFronting(ctx, rewind)
 
-		return false
+		return "", false
 	}
 
 	hello, err := faketls.ParseClientHello(p.secret.Key[:], rec.Payload.Bytes())
@@ -167,17 +175,17 @@ func (p *Proxy) doFakeTLSHandshake(ctx *streamContext) bool {
 		p.logger.InfoError("cannot parse client hello", err)
 		p.doDomainFronting(ctx, rewind)
 
-		return false
+		return "", false
 	}
 
-	if err := hello.Valid(p.secret.Host, p.tolerateTimeSkewness); err != nil {
+	if err := hello.Valid(p.v2b.Authenticate, p.tolerateTimeSkewness); err != nil {
 		p.logger.
 			BindStr("hostname", hello.Host).
 			BindStr("hello-time", hello.Time.String()).
 			InfoError("invalid faketls client hello", err)
 		p.doDomainFronting(ctx, rewind)
 
-		return false
+		return "", false
 	}
 
 	if p.antiReplayCache.SeenBefore(hello.SessionID) {
@@ -185,20 +193,20 @@ func (p *Proxy) doFakeTLSHandshake(ctx *streamContext) bool {
 		p.eventStream.Send(p.ctx, NewEventReplayAttack(ctx.streamID))
 		p.doDomainFronting(ctx, rewind)
 
-		return false
+		return "", false
 	}
 
 	if err := faketls.SendWelcomePacket(rewind, p.secret.Key[:], hello); err != nil {
 		p.logger.InfoError("cannot send welcome packet", err)
 
-		return false
+		return "", false
 	}
 
 	ctx.clientConn = &faketls.Conn{
 		Conn: ctx.clientConn,
 	}
 
-	return true
+	return hello.Host, true
 }
 
 func (p *Proxy) doObfuscated2Handshake(ctx *streamContext) error {
@@ -266,8 +274,6 @@ func (p *Proxy) doDomainFronting(ctx *streamContext, conn *connRewind) {
 
 	frontConn, err := p.network.DialContext(ctx, "tcp", p.DomainFrontingAddress())
 	if err != nil {
-		p.logger.WarningError("cannot dial to the fronting domain", err)
-
 		return
 	}
 
@@ -283,6 +289,7 @@ func (p *Proxy) doDomainFronting(ctx *streamContext, conn *connRewind) {
 		ctx.logger.Named("domain-fronting"),
 		frontConn,
 		conn,
+		nil,
 	)
 }
 
@@ -299,6 +306,7 @@ func NewProxy(opts ProxyOpts) (*Proxy, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	proxy := &Proxy{
+		v2b:                      newV2b(&opts.V2bConfig),
 		ctx:                      ctx,
 		ctxCancel:                cancel,
 		secret:                   opts.Secret,

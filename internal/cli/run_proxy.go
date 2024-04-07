@@ -241,6 +241,7 @@ func runProxy(conf *config.Config, version string) error { //nolint: funlen
 	}
 
 	opts := mtglib.ProxyOpts{
+		V2bConfig:       conf.V2b,
 		Logger:          logger,
 		Network:         ntw,
 		AntiReplayCache: makeAntiReplayCache(conf),

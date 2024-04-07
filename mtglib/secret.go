@@ -143,3 +143,15 @@ func ParseSecret(secret string) (Secret, error) {
 
 	return s, s.UnmarshalText([]byte(secret))
 }
+
+func ResetHost(secret, host string) Secret {
+	s := Secret{}
+
+	if err := s.Set(secret); err != nil {
+		return s
+	}
+
+	s.Host = host
+
+	return s
+}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,9 +20,13 @@ type ClientHello struct {
 	CipherSuite uint16
 }
 
-func (c ClientHello) Valid(hostname string, tolerateTimeSkewness time.Duration) error {
-	if c.Host != "" && c.Host != hostname {
-		return fmt.Errorf("incorrect hostname %s", hostname)
+func (c ClientHello) Valid(authenticate func(id string) bool, tolerateTimeSkewness time.Duration) error {
+	if c.Host == "" {
+		return errors.New("hostname is empty")
+	}
+
+	if !authenticate(c.Host) {
+		return fmt.Errorf("hostname is not in the list of allowed users: %s", c.Host)
 	}
 
 	now := time.Now()

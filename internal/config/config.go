@@ -64,6 +64,7 @@ type Config struct {
 			MetricPrefix TypeMetricPrefix `json:"metricPrefix"`
 		} `json:"prometheus"`
 	} `json:"stats"`
+	V2b mtglib.V2bConfig `json:"v2b"`
 }
 
 func (c *Config) Validate() error {

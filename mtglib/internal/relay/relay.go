@@ -8,7 +8,11 @@ import (
 	"github.com/9seconds/mtg/v2/essentials"
 )
 
-func Relay(ctx context.Context, log Logger, telegramConn, clientConn essentials.Conn) {
+type TrafficLogger interface {
+	Log(tx, rx uint64) (ok bool)
+}
+
+func Relay(ctx context.Context, log Logger, telegramConn, clientConn essentials.Conn, traffic func(tx, rx uint64) (ok bool)) {
 	defer telegramConn.Close()
 	defer clientConn.Close()
 
@@ -26,22 +30,37 @@ func Relay(ctx context.Context, log Logger, telegramConn, clientConn essentials.
 	go func() {
 		defer close(closeChan)
 
-		pump(log, telegramConn, clientConn, "client -> telegram")
+		pump(log, telegramConn, clientConn, traffic, "client -> telegram")
 	}()
 
-	pump(log, clientConn, telegramConn, "telegram -> client")
+	pump(log, clientConn, telegramConn, traffic, "telegram -> client")
 
 	<-closeChan
 }
 
-func pump(log Logger, src, dst essentials.Conn, direction string) {
+func pump(log Logger, src, dst essentials.Conn, traffic func(tx, rx uint64) (ok bool), direction string) {
 	defer src.CloseRead()  //nolint: errcheck
 	defer dst.CloseWrite() //nolint: errcheck
 
 	copyBuffer := acquireCopyBuffer()
 	defer releaseCopyBuffer(copyBuffer)
 
-	n, err := io.CopyBuffer(src, dst, *copyBuffer)
+	var (
+		n   int64
+		err error
+	)
+	switch direction {
+	case "client -> telegram":
+		n, err = CopyBufferTraffic(dst, src, *copyBuffer, func(u uint64) (ok bool) {
+			return traffic(u, 0)
+		})
+	case "telegram -> client":
+		n, err = CopyBufferTraffic(dst, src, *copyBuffer, func(u uint64) (ok bool) {
+			return traffic(0, u)
+		})
+	default:
+		err = errors.New("unknown direction")
+	}
 
 	switch {
 	case err == nil:
@@ -51,4 +70,49 @@ func pump(log Logger, src, dst essentials.Conn, direction string) {
 	default:
 		log.Printf("%s has been finished (written %d bytes): %v", direction, n, err)
 	}
+}
+
+func CopyBufferTraffic(dst io.Writer, src io.Reader, buf []byte, traffic func(uint64) (ok bool)) (written int64, err error) {
+	if buf == nil {
+		size := 32 * 1024
+		if l, ok := src.(*io.LimitedReader); ok && int64(size) > l.N {
+			if l.N < 1 {
+				size = 1
+			} else {
+				size = int(l.N)
+			}
+		}
+		buf = make([]byte, size)
+	}
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			if !traffic(uint64(nr)) {
+				return written, io.ErrClosedPipe
+			}
+			nw, ew := dst.Write(buf[0:nr])
+			if nw < 0 || nr < nw {
+				nw = 0
+				if ew == nil {
+					ew = errors.New("invalid write result")
+				}
+			}
+			written += int64(nw)
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
+	}
+	return written, err
 }
