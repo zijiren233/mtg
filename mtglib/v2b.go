@@ -29,7 +29,7 @@ type trafficStatsEntry struct {
 type V2b struct {
 	client   *http.Client
 	config   *V2bConfig
-	usersMap map[string]struct{}
+	usersMap map[string]*user
 	statsMap map[string]*trafficStatsEntry
 	lock     sync.RWMutex
 }
@@ -38,7 +38,7 @@ func newV2b(config *V2bConfig) *V2b {
 	return &V2b{
 		client:   &http.Client{},
 		config:   config,
-		usersMap: make(map[string]struct{}),
+		usersMap: make(map[string]*user),
 		statsMap: make(map[string]*trafficStatsEntry),
 	}
 }
@@ -94,9 +94,9 @@ func (v *V2b) UpdateUsers(interval time.Duration) {
 			time.Sleep(time.Second * 15)
 			continue
 		}
-		newUsersMap := make(map[string]struct{}, len(userList))
+		newUsersMap := make(map[string]*user, len(userList))
 		for _, user := range userList {
-			newUsersMap[user.UUID] = struct{}{}
+			newUsersMap[user.UUID] = user
 		}
 
 		v.lock.Lock()
@@ -118,18 +118,19 @@ func (v *V2b) Authenticate(id string) bool {
 	return false
 }
 
-func (v *V2b) Log(id string, tx uint64, rx uint64) bool {
+func (v *V2b) Log(uuid string, tx uint64, rx uint64) bool {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	if _, ok := v.usersMap[id]; !ok {
+	user, ok := v.usersMap[uuid]
+	if !ok {
 		return false
 	}
 
-	entry, ok := v.statsMap[id]
+	entry, ok := v.statsMap[strconv.FormatInt(int64(user.ID), 10)]
 	if !ok {
 		entry = &trafficStatsEntry{}
-		v.statsMap[id] = entry
+		v.statsMap[strconv.FormatInt(int64(user.ID), 10)] = entry
 	}
 	entry.Tx += tx
 	entry.Rx += rx
