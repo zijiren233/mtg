@@ -90,6 +90,8 @@ func (v *V2b) UpdateUsers(interval time.Duration) {
 	for {
 		userList, err := v.getUserList(context.Background(), interval)
 		if err != nil {
+			fmt.Printf("get user list failed: %v\n", err)
+			time.Sleep(time.Second * 15)
 			continue
 		}
 		newUsersMap := make(map[string]struct{}, len(userList))
@@ -156,7 +158,7 @@ func (v *V2b) PushTrafficToV2boardInterval(interval time.Duration) {
 				v.config.NodeType,
 			),
 		); err != nil {
-			fmt.Println("用户流量信息提交失败")
+			fmt.Printf("push traffic to v2board failed: %v\n", err)
 		}
 	}
 }
