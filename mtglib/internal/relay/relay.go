@@ -52,11 +52,11 @@ func pump(log Logger, src, dst essentials.Conn, traffic func(tx, rx uint64) (ok 
 	switch direction {
 	case "client -> telegram":
 		n, err = CopyBufferTraffic(dst, src, *copyBuffer, func(u uint64) (ok bool) {
-			return traffic(u, 0)
+			return traffic(0, u)
 		})
 	case "telegram -> client":
 		n, err = CopyBufferTraffic(dst, src, *copyBuffer, func(u uint64) (ok bool) {
-			return traffic(0, u)
+			return traffic(u, 0)
 		})
 	default:
 		err = errors.New("unknown direction")

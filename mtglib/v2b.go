@@ -168,7 +168,7 @@ func (v *V2b) PushTrafficToV2boardInterval(interval time.Duration) {
 func (v *V2b) pushTrafficToV2board(url string) (err error) {
 	v.lock.Lock()
 	request := TrafficPushRequest{
-		Data: make(map[string][2]uint64),
+		Data: make(map[string][2]uint64, len(v.statsMap)),
 	}
 	for id, stats := range v.statsMap {
 		request.Data[id] = [2]uint64{stats.Tx, stats.Rx}
