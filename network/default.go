@@ -57,7 +57,8 @@ func NewDefaultDialer(timeout time.Duration, bufferSize int) (Dialer, error) {
 
 	return &defaultDialer{
 		Dialer: net.Dialer{
-			Timeout: timeout,
+			Timeout:   timeout,
+			KeepAlive: DefaultTCPKeepAlivePeriod,
 		},
 	}, nil
 }
