@@ -75,13 +75,11 @@ func (p *Proxy) ServeConn(conn essentials.Conn) {
 
 	if err := p.doObfuscated2Handshake(ctx); err != nil {
 		p.logger.InfoError("obfuscated2 handshake is failed", err)
-
 		return
 	}
 
 	if err := p.doTelegramCall(ctx); err != nil {
 		p.logger.WarningError("cannot dial to telegram", err)
-
 		return
 	}
 

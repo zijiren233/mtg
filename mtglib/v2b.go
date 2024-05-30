@@ -48,6 +48,7 @@ type user struct {
 	UUID       string  `json:"uuid"`
 	SpeedLimit *uint32 `json:"speed_limit"`
 }
+
 type responseData struct {
 	Users []*user `json:"users"`
 }
@@ -94,6 +95,7 @@ func (v *V2b) UpdateUsers(interval time.Duration) {
 			time.Sleep(time.Second * 15)
 			continue
 		}
+		fmt.Printf("got %d users success\n", len(userList))
 		newUsersMap := make(map[string]*user, len(userList))
 		for _, user := range userList {
 			newUsersMap[user.UUID] = user
@@ -150,7 +152,7 @@ func (v *V2b) PushTrafficToV2boardInterval(interval time.Duration) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		if err := v.pushTrafficToV2board(
+		err := v.pushTrafficToV2board(
 			fmt.Sprintf(
 				"%s?token=%s&node_id=%d&node_type=%s",
 				v.config.API+"/api/v1/server/UniProxy/push",
@@ -158,9 +160,13 @@ func (v *V2b) PushTrafficToV2boardInterval(interval time.Duration) {
 				v.config.NodeID,
 				v.config.NodeType,
 			),
-		); err != nil {
+		)
+		if err != nil {
 			fmt.Printf("push traffic to v2board failed: %v\n", err)
+		} else {
+			fmt.Println("push traffic to v2board success")
 		}
+
 	}
 }
 
